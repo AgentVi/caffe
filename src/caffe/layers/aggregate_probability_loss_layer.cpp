@@ -51,40 +51,14 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
     const vector<Blob<Dtype>*>& top) {
   const Dtype* bottom_data = bottom[0]->cpu_data();
   const Dtype* bottom_label = bottom[1]->cpu_data();
-  const Dtype* infogain_mat = NULL;
-  if (bottom.size() < 3) {
-    infogain_mat = infogain_.cpu_data();
-  } else {
-    infogain_mat = bottom[2]->cpu_data();
-  }
   int num = bottom[0]->num();
   int dim = bottom[0]->count() / bottom[0]->num();
   Dtype loss = 0;
   for (int i = 0; i < num; ++i) {
     int label = static_cast<int>(bottom_label[i]);
     
-    Dtype prob = 0;
-    
-    //if the label probability is more than 0.5 then we aggregate the related labels into this probability
-    if(bottom_data[i * dim + label] >= abs(infogain_mat[label * dim + label]))
-    {
-        //if the infogain mat entry for this label is negative then we set the probability to 1
-        //this is normlay used for the unknown label only
-        if(infogain_mat[label * dim + label] < 0)
-            prob = 1;
-        else
-        {
-            for (int j = 0; j < dim; ++j) {
-              if(infogain_mat[label * dim + j] != 0)
-                prob += bottom_data[i * dim + j];
-            }                
-        }
-    }
-    else
-        prob = bottom_data[i * dim + label];
+    loss -= log(std::max(bottom_data[i * dim + label], Dtype(FLT_MIN)));
 
-    prob = std::max(prob, Dtype(kLOG_THRESHOLD));
-    loss -= log(prob);
   }
   top[0]->mutable_cpu_data()[0] = loss / num;
 }
