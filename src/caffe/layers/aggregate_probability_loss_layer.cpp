@@ -111,35 +111,46 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
       infogain_mat = bottom[2]->cpu_data();
     }
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+    
+    caffe_copy(bottom[0]->count(), bottom_data, bottom_diff);
+    
     int num = bottom[0]->num();
     int dim = bottom[0]->count() / bottom[0]->num();
-    const Dtype scale = - top[0]->cpu_diff()[0] / num;
     for (int i = 0; i < num; ++i) {
         const int label = static_cast<int>(bottom_label[i]);
-        Dtype prob = 0;
-        if(bottom_data[i * dim + label] >= abs(infogain_mat[label * dim + label]))
+
+        int high_label = 0;
+        Dtype high_prob = bottom_data[i * dim];
+        for (int k = 1; k < dim; k++) {
+            if (bottom_data[i * dim + k] > high_prob) {
+                high_label = k;
+                high_prob = bottom_data[i * dim + k];
+            }
+        }
+        
+        if(label == high_label)
         {
-            if(infogain_mat[label * dim + label] < 0)
-                prob = 1;
-            else
+            if(infogain_mat[label * dim + label] > 0 && high_prob >= infogain_mat[label * dim + label])
             {
+                bottom_diff[i*dim + label] = 0;
                 for (int j = 0; j < dim; ++j) {
-                  if(infogain_mat[label * dim + j] != 0)
-                    prob += bottom_data[i * dim + j];
+                  if(infogain_mat[label * dim + j] != 0) {
+                    bottom_diff[i*dim + label] += bottom_data[i * dim + j];
+                    bottom_diff[i * dim + j] = 0;
+                  }
+                  
                 }                
             }    
         }
-        else
-            prob = bottom_data[i * dim + label];
-
-        prob = std::max(prob, Dtype(kLOG_THRESHOLD));
-
-        for (int j = 0; j < dim; ++j) {
-          if(j == label)
-            bottom_diff[i * dim + j] = scale / prob;
-          else
-            bottom_diff[i * dim + j] = 0;
+        //used for the unknown class
+        else if(infogain_mat[label * dim + label] < 0 && high_prob <= (Dtype)0.5) {
+            bottom_diff[i * dim + label] = 1;
+            bottom_diff[i * dim + high_label] = 0;
+            
         }
+
+        bottom_diff[i * dim + label] -= 1;
+        
     }
   }
 }
