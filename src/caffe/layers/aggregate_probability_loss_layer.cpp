@@ -66,7 +66,7 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
     Dtype prob = 0;
     
     //if the label probability is more than 0.5 then we aggregate the related labels into this probability
-    if(bottom_data[i * dim + label] >= Dtype(0.5))
+    if(bottom_data[i * dim + label] >= abs(infogain_mat[label * dim + label]))
     {
         //if the infogain mat entry for this label is negative then we set the probability to 1
         //this is normlay used for the unknown label only
@@ -75,7 +75,8 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
         else
         {
             for (int j = 0; j < dim; ++j) {
-              prob += infogain_mat[label * dim + j]*bottom_data[i * dim + j];
+              if(infogain_mat[label * dim + j] != 0)
+                prob += bottom_data[i * dim + j];
             }                
         }
     }
@@ -116,14 +117,15 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
     for (int i = 0; i < num; ++i) {
         const int label = static_cast<int>(bottom_label[i]);
         Dtype prob = 0;
-        if(bottom_data[i * dim + label] >= Dtype(0.5))
+        if(bottom_data[i * dim + label] >= abs(infogain_mat[label * dim + label]))
         {
             if(infogain_mat[label * dim + label] < 0)
                 prob = 1;
             else
             {
                 for (int j = 0; j < dim; ++j) {
-                  prob += infogain_mat[label * dim + j]*bottom_data[i * dim + j];
+                  if(infogain_mat[label * dim + j] != 0)
+                    prob += bottom_data[i * dim + j];
                 }                
             }    
         }
