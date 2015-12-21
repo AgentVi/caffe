@@ -134,6 +134,7 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
     
     int num = bottom[0]->num();
     int dim = bottom[0]->count() / bottom[0]->num();
+    int count = 0;
     for (int i = 0; i < num; ++i) {
         const int label = static_cast<int>(bottom_label[i]);
 
@@ -168,7 +169,15 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
         }
 
         bottom_diff[i * dim + label] -= 1;
-        
+        ++count;
+    }
+    
+    // Scale gradient
+    const Dtype loss_weight = top[0]->cpu_diff()[0];
+    if (normalize_) {
+      caffe_scal(prob_.count(), loss_weight / count, bottom_diff);
+    } else {
+      caffe_scal(prob_.count(), loss_weight / outer_num_, bottom_diff);
     }
   }
 }
