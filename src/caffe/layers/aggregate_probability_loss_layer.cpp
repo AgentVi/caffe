@@ -132,51 +132,73 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
     int dim = prob_.count() / outer_num_;
     int count = 0;
     
-    const Dtype* infogain_mat = NULL;
+ /*   const Dtype* infogain_mat = NULL;
     if (bottom.size() < 3) {
       infogain_mat = infogain_.cpu_data();
     } else {
       infogain_mat = bottom[2]->cpu_data();
-    }
+    }*/
 
    for (int i = 0; i < outer_num_; ++i) {
       for (int j = 0; j < inner_num_; ++j) {
         const int label_value = static_cast<int>(label[i * inner_num_ + j]);
-        
-        int high_label = 0;
+        if (has_ignore_label_ && label_value == ignore_label_) {
+          for (int c = 0; c < bottom[0]->shape(softmax_axis_); ++c) {
+            bottom_diff[i * dim + c * inner_num_ + j] = 0;
+          }
+        } else {
+            if (label_value == (dim - 1)) {
+                int high_label = 0;
                 Dtype high_prob = bottom_diff[i * dim + 0 * inner_num_ + j];
-        for (int k = 1; k < dim; k++) {
+                for (int k = 1; k < dim; k++) {
                     if (bottom_diff[i * dim + k * inner_num_ + j] > high_prob) {
-                high_label = k;
+                        high_label = k;
                         high_prob = bottom_diff[i * dim + k * inner_num_ + j];
+                    }
+                }
+                if (high_label != label_value && high_prob <= (Dtype)0.5) {
+                    //Dtype t_prob = bottom_diff[i * dim + label_value * inner_num_ + j];
+                    bottom_diff[i * dim + label_value * inner_num_ + j] = 1;//1 - high_prob;
+                    bottom_diff[i * dim + high_label * inner_num_ + j] = 0;//t_prob;
+                }
             }
-        }
-        
-        if(label_value == high_label)
-        {
-            if(infogain_mat[label_value * dim + label_value] > 0 && high_prob >= infogain_mat[label_value * dim + label_value])
+            bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
+            ++count;
+            /*int high_label = 0;
+            Dtype high_prob = bottom_diff[i * dim + 0 * inner_num_ + j];
+            for (int k = 1; k < dim; k++) {
+                        if (bottom_diff[i * dim + k * inner_num_ + j] > high_prob) {
+                    high_label = k;
+                            high_prob = bottom_diff[i * dim + k * inner_num_ + j];
+                }
+            }
+            
+            if(label_value == high_label)
             {
-                bottom_diff[i * dim + label_value * inner_num_ + j] = 0;
-                for (int k = 0; k < dim; k++) {
-                  if(infogain_mat[label_value * dim + j] != 0) {
-                    bottom_diff[i * dim + label_value * inner_num_ + j] += prob_data[i * dim + j + k];
-                    bottom_diff[i * dim + j + k] = 0;
-                  }
-                  
-                }                
-            }    
-        }
-        //used for the unknown class
-        else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob <= (Dtype)0.5) {
-            bottom_diff[i * dim + label_value * inner_num_ + j] = 1;//1 - high_prob;
-            bottom_diff[i * dim + high_label * inner_num_ + j] = 0;//t_prob;
-        }
+                if(infogain_mat[label_value * dim + label_value] > 0 && high_prob >= infogain_mat[label_value * dim + label_value])
+                {
+                    bottom_diff[i * dim + label_value * inner_num_ + j] = 0;
+                    for (int k = 0; k < dim; k++) {
+                      if(infogain_mat[label_value * dim + j] != 0) {
+                        bottom_diff[i * dim + label_value * inner_num_ + j] += prob_data[i * dim + j + k];
+                        bottom_diff[i * dim + j + k] = 0;
+                      }
+                      
+                    }                
+                }    
+            }
+            //used for the unknown class
+            else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob <= (Dtype)0.5) {
+                bottom_diff[i * dim + label_value * inner_num_ + j] = 1;//1 - high_prob;
+                bottom_diff[i * dim + high_label * inner_num_ + j] = 0;//t_prob;
+            }
 
-        bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
-        ++count;
+            bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
+            ++count;
+             * */
+        }
       }
     }
-    
     // Scale gradient
     const Dtype loss_weight = top[0]->cpu_diff()[0];
     if (normalize_) {
