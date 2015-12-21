@@ -216,6 +216,10 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
     }
     // Scale gradient
     const Dtype loss_weight = top[0]->cpu_diff()[0];
+    
+    if(outer_num_ == 0 || count ==0)
+      LOG(ERROR) << outer_num_ << " " << count;
+
     if (normalize_) {
       caffe_scal(prob_.count(), loss_weight / count, bottom_diff);
     } else {
