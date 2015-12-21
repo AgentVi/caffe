@@ -85,18 +85,23 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
   // The forward pass computes the softmax prob values.
   softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
   const Dtype* prob_data = prob_.cpu_data();      
-  const Dtype* bottom_label = bottom[1]->cpu_data();
-  int num = bottom[0]->num();
-  int dim = bottom[0]->count() / bottom[0]->num();
-  Dtype loss = 0;
+  const Dtype* label = bottom[1]->cpu_data();
+  int dim = prob_.count() / outer_num_;
   int count = 0;
-  for (int i = 0; i < num; ++i) {
-    int label = static_cast<int>(bottom_label[i]);
-    
-    loss -= log(std::max(prob_data[i * dim + label], Dtype(FLT_MIN)));
+  Dtype loss = 0;
+  for (int i = 0; i < outer_num_; ++i) {
+    for (int j = 0; j < inner_num_; j++) {
+      const int label_value = static_cast<int>(label[i * inner_num_ + j]);
+      if (has_ignore_label_ && label_value == ignore_label_) {
+        continue;
+      }
+      DCHECK_GE(label_value, 0);
+      DCHECK_LT(label_value, prob_.shape(softmax_axis_));
+      loss -= log(std::max(prob_data[i * dim + label_value * inner_num_ + j],
+                           Dtype(FLT_MIN)));
     ++count;
   }
-  
+  }
   if (normalize_) {
     top[0]->mutable_cpu_data()[0] = loss / count;
   } else {
@@ -139,11 +144,11 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
         const int label_value = static_cast<int>(label[i * inner_num_ + j]);
         
         int high_label = 0;
-        Dtype high_prob = prob_data[i * dim];
+                Dtype high_prob = bottom_diff[i * dim + 0 * inner_num_ + j];
         for (int k = 1; k < dim; k++) {
-            if (prob_data[i * dim + k] > high_prob) {
+                    if (bottom_diff[i * dim + k * inner_num_ + j] > high_prob) {
                 high_label = k;
-                high_prob = prob_data[i * dim + k];
+                        high_prob = bottom_diff[i * dim + k * inner_num_ + j];
             }
         }
         
@@ -151,11 +156,11 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
         {
             if(infogain_mat[label_value * dim + label_value] > 0 && high_prob >= infogain_mat[label_value * dim + label_value])
             {
-                bottom_diff[i*dim + label_value] = 0;
-                for (int j = 0; j < dim; ++j) {
+                bottom_diff[i * dim + label_value * inner_num_ + j] = 0;
+                for (int k = 0; k < dim; k++) {
                   if(infogain_mat[label_value * dim + j] != 0) {
-                    bottom_diff[i*dim + label_value] += prob_data[i * dim + j];
-                    bottom_diff[i * dim + j] = 0;
+                    bottom_diff[i * dim + label_value * inner_num_ + j] += prob_data[i * dim + j + k];
+                    bottom_diff[i * dim + j + k] = 0;
                   }
                   
                 }                
