@@ -112,6 +112,8 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
   }
 }
 
+static bool printed = false;
+
 template <typename Dtype>
 void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
@@ -132,12 +134,21 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
     int dim = prob_.count() / outer_num_;
     int count = 0;
     
- /*   const Dtype* infogain_mat = NULL;
+    const Dtype* infogain_mat = NULL;
     if (bottom.size() < 3) {
       infogain_mat = infogain_.cpu_data();
     } else {
       infogain_mat = bottom[2]->cpu_data();
-    }*/
+    }
+    
+    if(!printed)
+    {
+        for(int i=0;i<dim;i++)
+        {
+            LOG(ERROR) << infogain_mat[i*dim] << " " << infogain_mat[i*dim+1] << " " << infogain_mat[i*dim+2] << " " << infogain_mat[i*dim+3] << " "<< infogain_mat[i*dim+4] << " "<< infogain_mat[i*dim+5] << " "<< infogain_mat[i*dim+6];
+        }
+        printed = true;
+    }
 
    for (int i = 0; i < outer_num_; ++i) {
       for (int j = 0; j < inner_num_; ++j) {
