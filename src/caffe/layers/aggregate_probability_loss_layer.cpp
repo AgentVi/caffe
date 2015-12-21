@@ -204,7 +204,7 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
             //used for the unknown class
             else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob <= (Dtype)0.5) {
                 bottom_diff[i * dim + label_value * inner_num_ + j] = 1;//1 - high_prob;
-                //bottom_diff[i * dim + high_label * inner_num_ + j] = 0;//t_prob;
+                bottom_diff[i * dim + high_label * inner_num_ + j] = 0;//t_prob;
             }
 
             bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
