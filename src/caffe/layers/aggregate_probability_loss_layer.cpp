@@ -102,6 +102,9 @@ void AggregateProbabilityLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*
     ++count;
   }
   }
+  
+  if(outer_num_ == 0 || count ==0)
+      LOG(ERROR) << outer_num_ << " " << count;
   if (normalize_) {
     top[0]->mutable_cpu_data()[0] = loss / count;
   } else {
@@ -192,8 +195,8 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
                     for (int k = 0; k < dim; k++) {
                       if(infogain_mat[label_value * dim + j] != 0) {
                         bottom_diff[i * dim + label_value * inner_num_ + j] += prob_data[i * dim + k * inner_num_ + j];
-                        if(k != label_value)
-                            bottom_diff[i * dim + k * inner_num_ + j] = 0;
+                        //if(k != label_value)
+                        //    bottom_diff[i * dim + k * inner_num_ + j] = 0;
                       }
                       
                     }                
