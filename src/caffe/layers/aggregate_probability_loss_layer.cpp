@@ -202,7 +202,7 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
                         doit = true;
                         bottom_diff[i * dim + label_value * inner_num_ + j] = 1.001;
                         for (int k = 0; k < dim; k++) {
-                          if(infogain_mat[label_value * dim + k] != 0) 
+                          if(infogain_mat[label_value * dim + k] != 0 && k != label_value) 
                             bottom_diff[i * dim + k * inner_num_ + j] = 0.001;
                         }                
                     }
