@@ -186,7 +186,6 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
                 }
             }
             
-            bool doit = false;
             if(label_value == high_label)
             {
                 if(infogain_mat[label_value * dim + label_value] > 0)
@@ -197,27 +196,26 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
                         prob += prob_data[i * dim + k * inner_num_ + j];
                     }                
                     
-                    if(prob >= infogain_mat[label_value * dim + label_value])
+                    if(prob > infogain_mat[label_value * dim + label_value])
                     {
-                        doit = true;
-                        bottom_diff[i * dim + label_value * inner_num_ + j] = 1.001;
+                        bottom_diff[i * dim + label_value * inner_num_ + j] = 1;
                         for (int k = 0; k < dim; k++) {
                           if(infogain_mat[label_value * dim + k] != 0 && k != label_value) 
-                            bottom_diff[i * dim + k * inner_num_ + j] = 0.001;
+                            bottom_diff[i * dim + k * inner_num_ + j] = 0;
                         }                
                     }
                 }    
             }
             //used for the unknown class
-            else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob <= fabs(infogain_mat[label_value * dim + label_value])) {
-                bottom_diff[i * dim + label_value * inner_num_ + j] = 1.001;
-                bottom_diff[i * dim + high_label * inner_num_ + j] = 0.001;
+            else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob < fabs(infogain_mat[label_value * dim + label_value])) {
+                bottom_diff[i * dim + label_value * inner_num_ + j] = 1;
+                bottom_diff[i * dim + high_label * inner_num_ + j] = 0;
             }
 
             bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
             
-            if(doit)
-                LOG(ERROR) << bottom_diff[i*dim] << " " << bottom_diff[i*dim+1] << " " << bottom_diff[i*dim+2] << " " << bottom_diff[i*dim+3] << " "<< bottom_diff[i*dim+4] << " "<< bottom_diff[i*dim+5] << " "<< bottom_diff[i*dim+6];
+//            if(doit)
+//                LOG(ERROR) << bottom_diff[i*dim] << " " << bottom_diff[i*dim+1] << " " << bottom_diff[i*dim+2] << " " << bottom_diff[i*dim+3] << " "<< bottom_diff[i*dim+4] << " "<< bottom_diff[i*dim+5] << " "<< bottom_diff[i*dim+6];
                 
             ++count;
              
