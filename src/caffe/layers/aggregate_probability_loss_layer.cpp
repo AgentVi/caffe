@@ -180,33 +180,39 @@ void AggregateProbabilityLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>
             int high_label = 0;
             Dtype high_prob = bottom_diff[i * dim + 0 * inner_num_ + j];
             for (int k = 1; k < dim; k++) {
-                if (bottom_diff[i * dim + k * inner_num_ + j] > high_prob) {
+                        if (bottom_diff[i * dim + k * inner_num_ + j] > high_prob) {
                     high_label = k;
-                    high_prob = bottom_diff[i * dim + k * inner_num_ + j];
+                            high_prob = bottom_diff[i * dim + k * inner_num_ + j];
                 }
             }
             
-            bool learnThis = true;
-            if(label_value == high_label && infogain_mat[label_value * dim + label_value] > 0)
+            if(label_value == high_label)
             {
-                Dtype prob = 0;
-                for (int k = 0; k < dim; k++) {
-                  if(infogain_mat[label_value * dim + k] != 0) 
-                    prob += prob_data[i * dim + k * inner_num_ + j];
-                }                
-                
-                if(prob >= infogain_mat[label_value * dim + label_value])
-                    learnThis = false;
+                if(infogain_mat[label_value * dim + label_value] > 0)
+                {
+                    Dtype prob = 0;
+                    for (int k = 0; k < dim; k++) {
+                      if(infogain_mat[label_value * dim + k] != 0) 
+                        prob += prob_data[i * dim + k * inner_num_ + j];
+                    }                
+                    
+                    if(prob >= infogain_mat[label_value * dim + label_value])
+                    {
+                        bottom_diff[i * dim + label_value * inner_num_ + j] = 1;
+                        for (int k = 0; k < dim; k++) {
+                          if(infogain_mat[label_value * dim + k] != 0) 
+                            bottom_diff[i * dim + k * inner_num_ + j] = 0;
+                        }                
+                    }
+                }    
             }
             //used for the unknown class
-            else if(label_value != high_label && infogain_mat[label_value * dim + label_value] < 0 && high_prob <= infogain_mat[label_value * dim + label_value]) {
-                learnThis = false;
+            else if(infogain_mat[label_value * dim + label_value] < 0 && high_prob <= infogain_mat[label_value * dim + label_value]) {
+                bottom_diff[i * dim + label_value * inner_num_ + j] = 1;
+                bottom_diff[i * dim + high_label * inner_num_ + j] = 0;
             }
 
-            if(learnThis)
-                bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
-            else
-                caffe_set(prob_.count(), Dtype(0), bottom_diff);
+            bottom_diff[i * dim + label_value * inner_num_ + j] -= 1;
             ++count;
              
         }
